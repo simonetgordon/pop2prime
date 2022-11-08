@@ -1,6 +1,7 @@
 import yt
 import ytree
 from yt.extensions.astro_analysis.halo_analysis import HaloCatalog
+from yt.data_objects.particle_filters import add_particle_filter
 import os
 from os.path import exists
 import matplotlib.pyplot as plt
@@ -13,6 +14,7 @@ new_param = False
 plot_particles = False
 radius_kpc = 0.2
 select_random_dm_particles = True
+find_dm_properties = True
 
 # load data
 root_dir = "/disk12/brs/pop2-prime/firstpop2_L2-Seed3_large/cc_512_no_dust_continue"
@@ -42,6 +44,16 @@ def halo_attributes(arbor, ds):
     rad = arbor[0]["virial_radius"].to('unitary')
     rad = arbor.quan(rad.d, "unitary")
     return mass, pos, rad
+
+def selected_dm(pfilter, data, file):
+    with open(file, 'r') as f:
+        s = f.read()
+    filter = data["particle_index"][data["particle_type"] == 1] in s
+    return filter
+
+add_particle_filter(
+    "selected_dm", function=selected_dm, filtered_type="nbody", requires=["particle_index", "particle_type"]
+)
 
 """ Main """
 if __name__ == "__main__":
@@ -134,12 +146,16 @@ if __name__ == "__main__":
         # this assumes that particle_index[3] has particle_position[3]
         dm_indices = random.sample(range(len(dm_ids_all)-1), no_particles)
         dm_pos = [dm_pos_all[i] for i in dm_indices]
-        #print("dm positions: ", dm_pos)
 
         with open("dm_particles.csv", mode="w") as f:
-            col_format = "{:<5}" * 2 + "\n"  # 2 left-justfied columns with 5 character width
-            col_format = "{:<15} , {1}"
             col_format = "{0}, {1}" + "\n"
             for (dm_indices, dm_pos) in zip(dm_indices, dm_pos):
                 f.write(col_format.format(dm_indices, dm_pos))
-            print('file created')
+            print('dm_particles.csv file created')
+
+    if find_dm_properties and select_random_dm_particles:
+        sphere_ds = yt.load("DD0560_sphere.h5")
+        sphere_ds.add_particle_filter("selected_dm")
+        ad = sphere_ds.all_data()
+        print(len(ad[("nbody", "particle_index")]))
+
