@@ -11,8 +11,8 @@ plot_mass_z = False
 print_halo_attributes = False
 new_param = False
 plot_particles = False
-plot_dm_on_gas = True
 radius_kpc = 0.2
+select_random_dm_particles = True
 
 # load data
 root_dir = "/disk12/brs/pop2-prime/firstpop2_L2-Seed3_large/cc_512_no_dust_continue"
@@ -114,26 +114,32 @@ if __name__ == "__main__":
         p.set_unit("particle_mass", "Msun")
         p.save('particle_plot.png')
 
-    if plot_dm_on_gas:
+    if select_random_dm_particles:
+        """
+        Chooses at random 1% of all dm particles in the sp_halo region.
+        """
+        random.seed(0)
         if not new_param:
             sp_halo = ds.sphere(halo_attributes(arbor, ds)[1], (radius_kpc, "kpc"))
-        p = yt.ProjectionPlot(
-            ds,
-            "z",
-            [("gas", "density"), ("gas", "temperature")],
-            weight_field=("gas", "density"),
-            center=halo_attributes(arbor, ds)[1],
-            width=(3, "kpc"),
-        )
-        random.seed(0)
-        dm_pos_all = sp_halo[("all", "particle_position")][sp_halo["particle_type"] == 1]
+
+        # grab all dm postions and ids
+        dm_pos_all = sp_halo[("all", "particle_position")][sp_halo["particle_type"] == 1].d
         dm_ids_all = sp_halo["particle_index"][sp_halo["particle_type"] == 1]
-        # i = random.randint(0, len(dm_ids)-1)
+
+        # total number of particles in sphere
         no_particles = int(len(dm_ids_all)*0.01)
         print(no_particles)
+
+        # sample random indices and form a list of dm positions from these ids
+        # this assumes that particle_index[3] has particle_position[3]
         dm_indices = random.sample(range(len(dm_ids_all)-1), no_particles)
         dm_pos = [dm_pos_all[i] for i in dm_indices]
-        #dm_pos.save_as_dataset()
-        print("dm positions: ", dm_pos)
-        p.annotate_particles((1, 'kpc'), data_source=sp_halo)
-        p.save('dm_particles_on_gas.png')
+        #print("dm positions: ", dm_pos)
+
+        with open("dm_particles.csv", mode="w") as f:
+            col_format = "{:<5}" * 2 + "\n"  # 2 left-justfied columns with 5 character width
+            col_format = "{:<15} , {1}"
+            col_format = "{0}, {1}" + "\n"
+            for (dm_indices, dm_pos) in zip(dm_indices, dm_pos):
+                f.write(col_format.format(dm_indices, dm_pos))
+            print('file created')
