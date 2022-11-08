@@ -1,3 +1,4 @@
+from __future__ import print_function
 import yt
 import ytree
 from yt.extensions.astro_analysis.halo_analysis import HaloCatalog
@@ -6,6 +7,8 @@ import os
 from os.path import exists
 import matplotlib.pyplot as plt
 import random
+import numpy as np
+
 
 plot_halos = False
 plot_mass_z = False
@@ -135,7 +138,7 @@ if __name__ == "__main__":
             sp_halo = ds.sphere(halo_attributes(arbor, ds)[1], (radius_kpc, "kpc"))
 
         # grab all dm postions and ids
-        dm_pos_all = sp_halo[("all", "particle_position")][sp_halo["particle_type"] == 1].d
+        dm_pos_all = sp_halo[("all", "particle_position")][sp_halo["particle_type"] == 1]
         dm_ids_all = sp_halo["particle_index"][sp_halo["particle_type"] == 1]
 
         # total number of particles in sphere
@@ -145,17 +148,31 @@ if __name__ == "__main__":
         # sample random indices and form a list of dm positions from these ids
         # this assumes that particle_index[3] has particle_position[3]
         dm_indices = random.sample(range(len(dm_ids_all)-1), no_particles)
-        dm_pos = [dm_pos_all[i] for i in dm_indices]
+        dm_pos = np.array([dm_pos_all[i] for i in dm_indices])
+        print("dm_pos_all_shape: ", dm_pos_all.shape)
+        print("dm_pos: ", dm_pos.shape)
 
-        with open("dm_particles.csv", mode="w") as f:
-            col_format = "{0}, {1}" + "\n"
-            for (dm_indices, dm_pos) in zip(dm_indices, dm_pos):
-                f.write(col_format.format(dm_indices, dm_pos))
-            print('dm_particles.csv file created')
-
-    if find_dm_properties and select_random_dm_particles:
+        # find field values at points
         sphere_ds = yt.load("DD0560_sphere.h5")
-        sphere_ds.add_particle_filter("selected_dm")
         ad = sphere_ds.all_data()
-        print(len(ad[("nbody", "particle_index")]))
+        dm_pos_all = ad["all", "particle_position"]
+        dm_pos_den_vel = sphere_ds.find_field_values_at_points(
+            [("gas", "density"), ("gas", "velocity_x")],
+            dm_pos_all[:10])
+
+        print(dm_pos_den_vel[:5])
+
+        output_file = "dm_particles.csv"
+        if not os.path.exists(output_file):
+            with open(output_file, mode="w") as f:
+                col_format = "{0}, {1}" + "\n"
+                for (dm_indices, dm_pos) in zip(dm_indices, dm_pos):
+                    f.write(col_format.format(dm_indices, dm_pos))
+                print('dm_particles.csv file created')
+
+    # if find_dm_properties and select_random_dm_particles:
+    #     sphere_ds = yt.load("DD0560_sphere.h5")
+    #     sphere_ds.add_particle_filter("selected_dm")
+    #     ad = sphere_ds.all_data()
+    #     print(len(ad[("nbody", "particle_index")]))
 
