@@ -9,13 +9,13 @@ import matplotlib.pyplot as plt
 import random
 import numpy as np
 
-
+# macros
 plot_halos = False
 plot_mass_z = False
 print_halo_attributes = False
-new_param = False
+new_param = False # generate sphere.h5
 plot_particles = False
-radius_kpc = 0.2
+radius_kpc = 0.1
 select_random_dm_particles = True
 find_dm_properties = True
 
@@ -72,25 +72,24 @@ if __name__ == "__main__":
         print("At z = {}, time = {}".format(ds.current_redshift, ds.current_time.in_units("Myr")))
         print("Halo mass:     ", halo_attributes(arbor, ds)[0])
         print("Halo position: ", halo_attributes(arbor, ds)[1])
-        print("Halo radius:   ", halo_attributes(arbor, ds)[2])
+        print("Halo radius:   ", halo_attributes(arbor, ds)[2].to('pc'))
         print("==================================================")
 
-    #sp_halo.write_out("sphere_0.2kpc.txt") #  fields=[('nbody', 'particle_index')]
     if new_param is False:
         sphere_ds = yt.load("DD0560_sphere.h5")
         ad = sphere_ds.all_data()
         dm_ids = ad[("nbody", "particle_index")]
         print("dm ids: ", dm_ids)
         print("number of dm particles: ", len(dm_ids))
-    else: # make sphere
-        sp_halo = ds.sphere(halo_attributes(arbor, ds)[1], (radius_kpc, "kpc"))
+    else: # make sphere of viral radius
+        sp_halo = ds.sphere(halo_attributes(arbor, ds)[1], (radius_kpc, 'kpc'))
         fields = [('nbody', 'particle_index'), ('nbody', 'particle_type'), ('gas', 'temperature'), ('gas', 'density'),
                   ("all", "particle_position_x"), ("all", "particle_position_y"), ("all", "particle_position_z"),
                   ("all", "particle_position")]
         fn = sp_halo.save_as_dataset(fields=fields) # save as dataset
         dm_ids = sp_halo["particle_index"][sp_halo["particle_type"] == 1]
         print("dm ids: ", dm_ids)
-        print("number of dm particles: ", len(dm_ids))
+        print("number of dm particles: ", len(dm_ids)) # 547,338 within 0.1 kpc
 
 
     """ Plotting """
@@ -155,19 +154,21 @@ if __name__ == "__main__":
         # find field values at points
         sphere_ds = yt.load("DD0560_sphere.h5")
         ad = sphere_ds.all_data()
-        dm_pos_all = ad["all", "particle_position"]
-        dm_pos_den_vel = sphere_ds.find_field_values_at_points(
-            [("gas", "density"), ("gas", "velocity_x")],
-            dm_pos_all[:10])
+        dm_pos_all = ad["nbody", "particle_position"][ad["nbody", "particle_type"] == 1]
+        dm_pos_den = ds.find_field_values_at_points(("gas", "density"), dm_pos)
+        dm_pos_velx = ds.find_field_values_at_points(("gas", "velocity_x"), dm_pos)
+        dm_pos_vely = ds.find_field_values_at_points(("gas", "velocity_y"), dm_pos)
+        dm_pos_velz = ds.find_field_values_at_points(("gas", "velocity_z"), dm_pos)
 
-        print(dm_pos_den_vel[:5])
+        print(dm_pos_den[:5])
+        print(len(dm_pos_den))
 
         output_file = "dm_particles.csv"
         if not os.path.exists(output_file):
             with open(output_file, mode="w") as f:
-                col_format = "{0}, {1}" + "\n"
-                for (dm_indices, dm_pos) in zip(dm_indices, dm_pos):
-                    f.write(col_format.format(dm_indices, dm_pos))
+                col_format = "{0}, {1}, {2}" + "\n"
+                for (dm_indices, dm_pos, dm_pos_den) in zip(dm_indices, dm_pos, dm_pos_den):
+                    f.write(col_format.format(dm_indices, dm_pos, dm_pos_den))
                 print('dm_particles.csv file created')
 
     # if find_dm_properties and select_random_dm_particles:
