@@ -156,6 +156,7 @@ if __name__ == "__main__":
         ad = sphere_ds.all_data()
         dm_pos_all = ad["nbody", "particle_position"][ad["nbody", "particle_type"] == 1]
         dm_pos_den = ds.find_field_values_at_points(("gas", "density"), dm_pos)
+        dm_pos_temp = ds.find_field_values_at_points(("gas", "temperature"), dm_pos)
         dm_pos_velx = ds.find_field_values_at_points(("gas", "velocity_x"), dm_pos)
         dm_pos_vely = ds.find_field_values_at_points(("gas", "velocity_y"), dm_pos)
         dm_pos_velz = ds.find_field_values_at_points(("gas", "velocity_z"), dm_pos)
@@ -163,17 +164,17 @@ if __name__ == "__main__":
         print(dm_pos_den[:5])
         print(len(dm_pos_den))
 
-        output_file = "dm_particles.csv"
-        if not os.path.exists(output_file):
-            with open(output_file, mode="w") as f:
-                col_format = "{0}, {1}, {2}" + "\n"
-                for (dm_indices, dm_pos, dm_pos_den) in zip(dm_indices, dm_pos, dm_pos_den):
-                    f.write(col_format.format(dm_indices, dm_pos, dm_pos_den))
-                print('dm_particles.csv file created')
+        data = {
+            "positions": dm_pos,
+            "density": dm_pos_den,
+            "temperature": dm_pos_temp,
+            "velocity_x": dm_pos_velx,
+            "velocity_y": dm_pos_vely,
+            "velocity z": dm_pos_velz,
+        }
 
-    # if find_dm_properties and select_random_dm_particles:
-    #     sphere_ds = yt.load("DD0560_sphere.h5")
-    #     sphere_ds.add_particle_filter("selected_dm")
-    #     ad = sphere_ds.all_data()
-    #     print(len(ad[("nbody", "particle_index")]))
+        ds_data = {"current_time": ds.current_time.in_units('Myr')}
 
+        yt.save_as_dataset(ds_data, "ds_dm_particles.h5", data)
+        new_ds = yt.load("ds_dm_particles.h5")
+        print(new_ds.data[("data", "temperature")])
