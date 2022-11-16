@@ -13,7 +13,7 @@ import numpy as np
 plot_halos = False
 plot_mass_z = False
 print_halo_attributes = False
-new_param = False # generate sphere.h5
+new_param = True # generate sphere.h5
 plot_particles = False
 radius_kpc = 0.1
 select_random_dm_particles = True
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         sp_halo = ds.sphere(halo_attributes(arbor, ds)[1], (radius_kpc, 'kpc'))
         fields = [('nbody', 'particle_index'), ('nbody', 'particle_type'), ('gas', 'temperature'), ('gas', 'density'),
                   ("all", "particle_position_x"), ("all", "particle_position_y"), ("all", "particle_position_z"),
-                  ("all", "particle_position")]
+                  ("all", "particle_position"), ('nbody', 'particle_mass')]
         fn = sp_halo.save_as_dataset(fields=fields) # save as dataset
         dm_ids = sp_halo["particle_index"][sp_halo["particle_type"] == 1]
         print("dm ids: ", dm_ids)
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
         # sample random indices and form a list of dm positions from these ids
         # this assumes that particle_index[3] has particle_position[3]
-        dm_indices = random.sample(range(len(dm_ids_all)-1), no_particles)
+        dm_indices = np.array(random.sample(range(len(dm_ids_all)-1), no_particles))
         dm_pos = np.array([dm_pos_all[i] for i in dm_indices])
         print("dm_pos_all_shape: ", dm_pos_all.shape)
         print("dm_pos: ", dm_pos.shape)
@@ -155,6 +155,8 @@ if __name__ == "__main__":
         sphere_ds = yt.load("DD0560_sphere.h5")
         ad = sphere_ds.all_data()
         dm_pos_all = ad["nbody", "particle_position"][ad["nbody", "particle_type"] == 1]
+        dm_mass_all = ad["nbody", "particle_mass"][ad["nbody", "particle_type"] == 1]
+        dm_pos_mass = np.array([dm_mass_all[i] for i in dm_indices])
         dm_pos_den = ds.find_field_values_at_points(("gas", "density"), dm_pos)
         dm_pos_temp = ds.find_field_values_at_points(("gas", "temperature"), dm_pos)
         dm_pos_velx = ds.find_field_values_at_points(("gas", "velocity_x"), dm_pos)
@@ -165,7 +167,9 @@ if __name__ == "__main__":
         print(len(dm_pos_den))
 
         data = {
-            "positions": dm_pos,
+            "particle_id": dm_indices,
+            "position": dm_pos,
+            "mass": dm_pos_mass,
             "density": dm_pos_den,
             "temperature": dm_pos_temp,
             "velocity_x": dm_pos_velx,
@@ -175,6 +179,6 @@ if __name__ == "__main__":
 
         ds_data = {"current_time": ds.current_time.in_units('Myr')}
 
-        yt.save_as_dataset(ds_data, "ds_dm_particles.h5", data)
-        new_ds = yt.load("ds_dm_particles.h5")
-        print(new_ds.data[("data", "temperature")])
+        filename = "ds_dm_particles.h5"
+        yt.save_as_dataset(ds_data, filename, data)
+        print("created ", filename)
