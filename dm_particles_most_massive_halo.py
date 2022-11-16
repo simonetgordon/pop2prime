@@ -154,9 +154,8 @@ if __name__ == "__main__":
         # find field values at points
         sphere_ds = yt.load("DD0560_sphere.h5")
         ad = sphere_ds.all_data()
-        dm_pos_all = ad["nbody", "particle_position"][ad["nbody", "particle_type"] == 1]
-        dm_mass_all = ad["nbody", "particle_mass"][ad["nbody", "particle_type"] == 1]
-        dm_pos_mass = np.array([dm_mass_all[i] for i in dm_indices])
+        dm_mass_all = ad["nbody", "particle_mass"][ad["nbody", "particle_type"] == 1].to('Msun')
+        dm_pos_mass = np.array([dm_mass_all[i] for i in dm_indices])  # all ~ 1.25 msun
         dm_pos_den = ds.find_field_values_at_points(("gas", "density"), dm_pos)
         dm_pos_temp = ds.find_field_values_at_points(("gas", "temperature"), dm_pos)
         dm_pos_velx = ds.find_field_values_at_points(("gas", "velocity_x"), dm_pos)
