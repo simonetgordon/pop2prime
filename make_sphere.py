@@ -26,8 +26,10 @@ def halo_attributes(arbor, i):
 
 # define particle filter
 @yt.particle_filter(requires=["particle_index"], filtered_type="nbody")
-def traced_dm(pfilter, data):
-    return data[(pfilter.filtered_type, "particle_index")] == np.any(dm_indices)
+def _traced_dm(pfilter, data):
+    bool_mask = data[(pfilter.filtered_type, "particle_index")] == np.any(dm_indices)
+    print(bool_mask)
+    return data[(pfilter.filtered_type, "particle_index")][bool_mask]
 
 
 if __name__ == "__main__":
@@ -61,6 +63,9 @@ if __name__ == "__main__":
         sphere_ds = yt.load(fn)
 
         # isolate the dm particles you're following
+        yt.add_particle_filter(
+            "traced_dm", function=_traced_dm, filtered_type="nbody", requires=["particle_index"]
+        )
         sphere_ds.add_particle_filter("traced_dm")
         print("dm filter added")
         ad = sphere_ds.all_data()
