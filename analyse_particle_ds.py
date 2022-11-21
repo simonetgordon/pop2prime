@@ -35,7 +35,7 @@ def velocity_magnitude(vx, vy, vz):
 # print basic attributes
 print("===========================================================================================")
 print("At z = {}, time = {:.2f}".format(ds.current_redshift, ds.current_time.in_units("Myr")))
-print("Number of DM particles: {}".format(len(ds.data[("data", "temperature")])))
+print("Number of DM particles: {}".format(len(ds.data[("traced_dm", "particle_index")])))
 print("Max temp: {:.2f}, Min temp: {:.2f}, Mean temp: {:.2f}".format(np.max(ds.data[("data", "temperature")]),
                                                                      np.min(ds.data[("data", "temperature")]),
                                                                      np.mean(ds.data[("data", "temperature")])))
