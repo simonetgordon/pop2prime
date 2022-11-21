@@ -54,10 +54,6 @@ def selected_dm(pfilter, data, file):
     filter = data["particle_index"][data["particle_type"] == 1] in s
     return filter
 
-add_particle_filter(
-    "selected_dm", function=selected_dm, filtered_type="nbody", requires=["particle_index", "particle_type"]
-)
-
 """ Main """
 if __name__ == "__main__":
     # load most massive halo tree object
