@@ -1,9 +1,17 @@
+"""
+Produces dataset of traced DM particle positions across entire simulation.
+
+Usage: mpirun -np 4 python make_sphere.py DD0558/DD0558 DD0559/DD0559
+
+Requirements: ds_dm_particles.h5 in current directory and cc_512_no_dust_continue path provided in script.
+"""
 import yt
 import ytree
 import os
 import sys
 import numpy as np
 import time
+from os.path import exists
 
 yt.enable_parallelism()
 
@@ -11,13 +19,13 @@ yt.enable_parallelism()
 # Find position and radius of each one and make a sphere.h5 file for each
 
 # macros
-radius_kpccm = 0.1
+radius_kpccm = 1
+use_sphere = True
 
 def halo_attributes(arbor, i):
     """
     Return mass, position and radius of halo at snapshot 560-i
     """
-    # arbor = list(arbor[:])
     mass = arbor[i]["mass"].to('Msun')
     pos = arbor[i]["position"].to('unitary')
     pos = arbor.arr(pos.d, "unitary")
@@ -44,7 +52,6 @@ yt.add_particle_filter("precious", function=_precious,
 
 if __name__ == "__main__":
 
-    print("here")
     # load data
     root_dir = "/disk12/brs/pop2-prime/firstpop2_L2-Seed3_large/cc_512_no_dust_continue"
     # dds = yt.load(os.path.join(root_dir, sys.argv[1])) # something like DD%04d/DD%04d for multiple DDs
@@ -62,25 +69,32 @@ if __name__ == "__main__":
     i = 0
     for store, ds in ts.piter(storage=storage):
 
-        # Make sphere from refined region, centred on MMHalo centre
-        # region = ds.box(ds.parameters["RefineRegionLeftEdge"],
-        #                 ds.parameters["RefineRegionRightEdge"])
-
         fields = [('nbody', 'particle_index'), ('nbody', 'particle_type'), ('gas', 'temperature'), ('gas', 'density'),
                   ("all", "particle_position_x"), ("all", "particle_position_y"), ("all", "particle_position_z"),
                   ("all", "particle_position"), ('nbody', 'particle_mass')]
-        #region = region.save_as_dataset(fields=fields)  # save as dataset
-        # print("here3")
-        # sphere_ds = yt.load(fn)
 
-        # isolate the dm particles you're following
+        # Make sphere from refined region, centred on MMHalo centre
+        # region = ds.box(ds.parameters["RefineRegionLeftEdge"],
+
+        # isolate the dm particles you're tracing
         print(dm_indices)
-        ds.add_particle_filter("precious")
+        ds.add_particle_filter("precious") # takes a long time
 
-        ad = ds.all_data()
-        dm_mass_all = ad["precious", "particle_mass"].to('Msun')
+        if use_sphere:
+            print(str(ds) + "_sphere.h5")
+            if not exists(str(ds) + "_sphere.h5"):
+                print("making sphere data container")
+                sp_halo = ds.sphere(halo_attributes(a, i)[1], (radius_kpccm, 'kpc'))
+                sphere = sp_halo.save_as_dataset(fields=fields)  # save as dataset
+            else:
+                sphere = str(ds) + "_sphere.h5"
+            print("sphere: ", sphere)
+            sphere_ds = yt.load(sphere)
+
+        ad = sphere_ds.all_data()
+        dm_mass_all = sphere_ds["precious", "particle_mass"].to('Msun')
         print(len(dm_mass_all))
         store.result = (ds.current_time.in_units("Myr"), )
 
-        print("execution time: ", time.perf_counter()*1.66667e-11)
+        print("execution time (s): ", time.perf_counter()/60)
         i += 1
